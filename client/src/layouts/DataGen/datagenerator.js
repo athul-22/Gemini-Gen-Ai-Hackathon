@@ -82,7 +82,7 @@ function DataGenDashboard() {
               <div style={{ padding: '20px' }}>
                 {activeStep === 0 && (
                   <div>
-                    <Typography variant="body1">Content for Type Section</Typography>
+                    <Typography variant="body1">DIFFERENT TYPES OF MODELS HERE</Typography>
                   </div>
                 )}
                 {activeStep === 1 && (
