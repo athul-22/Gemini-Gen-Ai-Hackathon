@@ -180,6 +180,13 @@ function DataGenDashboard() {
                 </div>
                 
                 )}
+                {activeStep === 2 && (
+                  <div >
+                  <Typography variant="h6" align="center" mt={10} className={classes.title}>
+                    3RD SECTION
+                  </Typography>
+                </div>
+                )}
               </div>
               <div style={{ padding: '0px 20px' }}>
                 <Box sx={{ display: 'flex', flexDirection: 'row', pt: 2 }}>
