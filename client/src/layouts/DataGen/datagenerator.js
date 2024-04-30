@@ -23,6 +23,9 @@ import Select from '@mui/material/Select';
 import TipsAndUpdatesIcon from '@mui/icons-material/TipsAndUpdates';
 import DataUsageIcon from '@mui/icons-material/DataUsage';
 import AutoGraphIcon from '@mui/icons-material/AutoGraph';
+import Radio from '@mui/material/Radio';
+import RadioGroup from '@mui/material/RadioGroup';
+import FormControlLabel from '@mui/material/FormControlLabel';
 
 const useStyles = makeStyles((theme) => ({
   cardContainer: {
@@ -95,6 +98,7 @@ const FileUploader = () => {
     }
   };
 
+
   return (
     <div
       onDragOver={handleDragOver}
@@ -130,7 +134,21 @@ function DataGenDashboard() {
   const [activeStep, setActiveStep] = useState(0);
   const [completed, setCompleted] = useState({});
   const MenuProps = {}; // Define MenuProps here
+  const [uploadOption, setUploadOption] = useState('continue');
 
+  const handleContinueWithoutFile = () => {
+    // Mark the current step as completed
+    const newCompleted = completed;
+    newCompleted[activeStep] = true;
+    setCompleted(newCompleted);
+
+    // Move to the "Generate" step
+    setActiveStep(3);
+  };
+
+  const handleUploadOptionChange = (event) => {
+    setUploadOption(event.target.value);
+  };
   const totalSteps = () => steps.length;
   const completedSteps = () => Object.keys(completed).length;
   const isLastStep = () => activeStep === totalSteps() - 1;
@@ -251,8 +269,25 @@ function DataGenDashboard() {
                   <Typography variant="h6" align="center" mt={10} className={classes.title}>
                     Input Sample Data
                   </Typography>
-                  <FileUploader />
-                </div>
+                  <RadioGroup
+                      aria-label="upload-option"
+                      name="upload-option"
+                      value={uploadOption}
+                      onChange={handleUploadOptionChange}
+                    >
+                      <FormControlLabel value="upload" control={<Radio />} label="Continue Without Data" />
+                      <FormControlLabel value="continue" control={<Radio />} label="Upload Data" />
+                    </RadioGroup>
+                    {uploadOption === 'continue' && <FileUploader />}
+                  </div>
+                )}
+                {activeStep === 3 && (
+                  <div>
+                    <Typography variant="h6" align="center" mt={10} className={classes.title}>
+                      Generate
+                    </Typography>
+                    {/* Add your generate step content here */}
+                  </div>
                 )}
               </div>
               <div style={{ padding: '0px 20px' }}>
