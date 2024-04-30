@@ -56,7 +56,73 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const steps = ['Type', 'Model', 'Input Sample', 'Generate', 'Output'];
+const FileUploader = () => {
+  const [file, setFile] = useState(null);
+  const [csvData, setCsvData] = useState(null);
 
+  const handleFileChange = (event) => {
+    const selectedFile = event.target.files[0];
+    if (selectedFile && selectedFile.type === 'text/csv' && selectedFile.size <= 102400) {
+      setFile(selectedFile);
+      const reader = new FileReader();
+      reader.onload = () => {
+        const csvDataArray = reader.result.split('\n').map((row) => row.split(','));
+        setCsvData(csvDataArray);
+      };
+      reader.readAsText(selectedFile);
+    } else {
+      alert('Please select a CSV file with a size less than or equal to 100KB');
+    }
+  };
+
+  const handleDragOver = (event) => {
+    event.preventDefault();
+  };
+
+  const handleDrop = (event) => {
+    event.preventDefault();
+    const droppedFile = event.dataTransfer.files[0];
+    if (droppedFile && droppedFile.type === 'text/csv' && droppedFile.size <= 102400) {
+      setFile(droppedFile);
+      const reader = new FileReader();
+      reader.onload = () => {
+        const csvDataArray = reader.result.split('\n').map((row) => row.split(','));
+        setCsvData(csvDataArray);
+      };
+      reader.readAsText(droppedFile);
+    } else {
+      alert('Please select a CSV file with a size less than or equal to 100KB');
+    }
+  };
+
+  return (
+    <div
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+      style={{
+        border: '2px dashed #ccc',
+        padding: '20px',
+        textAlign: 'center',
+        cursor: 'pointer',
+      }}
+    >
+      {file ? (
+        <div>
+          <p>Selected File: {file.name}</p>
+          <button onClick={() => {
+            setFile(null);
+            setCsvData(null);
+          }}>Remove File</button>
+        </div>
+      ) : (
+        <div>
+          <p>Drag and drop a CSV file here (maximum size: 100KB), or click to select a file</p>
+          <input type="file" accept=".csv" onChange={handleFileChange} />
+        </div>
+      )}
+    </div>
+  );
+};
 function DataGenDashboard() {
 
   const classes = useStyles();
@@ -183,8 +249,9 @@ function DataGenDashboard() {
                 {activeStep === 2 && (
                   <div >
                   <Typography variant="h6" align="center" mt={10} className={classes.title}>
-                    3RD SECTION
+                    Input Sample Data
                   </Typography>
+                  <FileUploader />
                 </div>
                 )}
               </div>
