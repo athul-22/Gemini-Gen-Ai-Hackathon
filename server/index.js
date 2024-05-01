@@ -1,25 +1,34 @@
-require('dotenv').config();
-
+const express = require('express');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+require('dotenv').config();
+const cors = require('cors');
 
-// ACCESS API KEYS
+const app = express();
+
+app.use(cors({
+  origin: 'http://localhost:3001', // SECURITY - ALLOW REQ. FROM FRONTEND - DIFFERENT URL
+}));
+
+
+const port = 3000;
+
+// INITIALIZE GENAI WITH API KEY 
 const genAI = new GoogleGenerativeAI(process.env.API_KEY);
 
-// GENERAL SYSTEM INSTRUCTION  
-const systemInstruction = {
-    parts: [
-      {
-        text: "response contain only table no need extra text"
-      }
-    ]
-  };
-  
-
+// SETTINGS
 const generationConfig = {
     temperature: 1,
     top_p: 0.95,
     top_k: 0,
     max_output_tokens: 8192,
+};
+
+const systemInstruction = {
+    parts: [
+        {
+            text: "response contain only table no need extra text"
+        }
+    ]
 };
 
 const safetySettings = [
@@ -41,27 +50,36 @@ const safetySettings = [
     },
 ];
 
+// ENDPOINT - http://localhost:3000/generate-data - GET METHOD
+app.get('/generate-data', async (req, res) => {
+    try {
+        // INITIALIZE GEN AI MODEL
+        const model = genAI.getGenerativeModel({
+            model: "gemini-1.5-pro-latest",
+            generationConfig,
+            systemInstruction,
+            safetySettings,
+        });
 
-async function run() {
+        // PROMPT
+        const prompt = "Generate synthetic data for a machine learning model aimed at predicting Boston house prices. Include 2 features in the dataset. Please provide the data in JSON format, containing at least 3 rows. Ensure that the response does not include any special formatting symbols, such as ``` or ```.";
 
-    // INITIALIZE GEN AI MODEL 
-    // 🔺 OLD
-    //  const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-    // 🔺 NEW
-    const model = genAI.getGenerativeModel({
-        model: "gemini-1.5-pro-latest",
-        generationConfig,
-        systemInstruction,
-        safetySettings,
-    });
+        const result = await model.generateContent(prompt);
+        const generatedData = result.response.text(); 
 
-    // Implement use case: Generate text from text-only input
-    const prompt = "generate synthetic data for my machine learning model with 10 features for Boston house price prediction \ngive me only table no need other text.generate atleast 20 rows";
+        console.log('Generated data:', generatedData);
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
-    console.log(text);
-}
+        // RETURN JSON RESPONSE
+        res.json({ data: generatedData });
+    } catch (error) {
+        console.error('Error generating synthetic data:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
 
-run();
+
+
+// START THE SERVER
+app.listen(port, () => {
+    console.log(`Server is running on http://localhost:${port}`);
+});

@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useEffect } from 'react';
 import { useState } from "react";
 import Grid from "@mui/material/Grid";
 import Card from "@mui/material/Card";
@@ -26,16 +27,18 @@ import AutoGraphIcon from '@mui/icons-material/AutoGraph';
 import Radio from '@mui/material/Radio';
 import RadioGroup from '@mui/material/RadioGroup';
 import FormControlLabel from '@mui/material/FormControlLabel';
+import { Label } from '@material-ui/icons';
+import LinearProgress from '@mui/material/LinearProgress';
+import './styles.css';
 
 const useStyles = makeStyles((theme) => ({
   cardContainer: {
     padding: 10,
     height: '100%',
-    background: 'linear-gradient(to bottom right, rgba(235, 245, 255, 0.3) 25%, rgba(243, 246, 249, 0.2) 100%)',
+    background: 'white',
     borderRadius: 10,
-    border: '1px solid #99CCFF',
-    color: '#1C2025',
-    boxShadow: '0px 2px 8px #CCE5FF',
+    border: '1px solid grey',
+    color: 'grey',
     transition: 'box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1) 0ms',
     display: 'flex',
     flexDirection: 'column',
@@ -56,10 +59,28 @@ const useStyles = makeStyles((theme) => ({
     backgroundColor: 'linear-gradient(to bottom right, rgba(235, 245, 255, 0.3) 25%, rgba(243, 246, 249, 0.2) 100%)',
     boxShadow: '0px 1px 6px 0px rgba(0, 115, 230, 0.2), 0px 2px 12px 0px rgba(234, 237, 241, 0.3) inset',
   },
+  firstCardContainer: {
+    padding: 10,
+    height: '100%',
+    background: 'linear-gradient(to bottom right, rgba(235, 245, 255, 0.3) 25%, rgba(243, 246, 249, 0.2) 100%)',
+
+    borderRadius: 10,
+    border: '1px solid #99CCFF',
+    color: '#1C2025',
+    boxShadow: '0px 2px 8px #CCE5FF',
+    transition: 'box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1) 0ms',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-between',
+    cursor: 'pointer',
+  },
 }));
 
-const steps = ['Type', 'Model', 'Input Sample', 'Generate', 'Output'];
+
+const steps = ['Type', 'Model', 'Input Sample', 'Generate'];
+
 const FileUploader = () => {
+
   const [file, setFile] = useState(null);
   const [csvData, setCsvData] = useState(null);
 
@@ -71,6 +92,7 @@ const FileUploader = () => {
       reader.onload = () => {
         const csvDataArray = reader.result.split('\n').map((row) => row.split(','));
         setCsvData(csvDataArray);
+        console.log(csvDataArray)
       };
       reader.readAsText(selectedFile);
     } else {
@@ -104,9 +126,10 @@ const FileUploader = () => {
       onDragOver={handleDragOver}
       onDrop={handleDrop}
       style={{
-        border: '2px dashed #ccc',
+        border: '1.5px dashed #ccc',
         padding: '20px',
         textAlign: 'center',
+        borderRadius: '20px',
         cursor: 'pointer',
       }}
     >
@@ -120,13 +143,15 @@ const FileUploader = () => {
         </div>
       ) : (
         <div>
-          <p>Drag and drop a CSV file here (maximum size: 100KB), or click to select a file</p>
+          <p style={{ fontSize: '15px' }}>Drag and drop a CSV file here (maximum size: 100KB), or click to select a file</p>
           <input type="file" accept=".csv" onChange={handleFileChange} />
         </div>
       )}
     </div>
   );
 };
+
+
 function DataGenDashboard() {
 
   const classes = useStyles();
@@ -135,14 +160,12 @@ function DataGenDashboard() {
   const [completed, setCompleted] = useState({});
   const MenuProps = {}; // Define MenuProps here
   const [uploadOption, setUploadOption] = useState('continue');
+  const [progress, setProgress] = useState(0);
 
   const handleContinueWithoutFile = () => {
-    // Mark the current step as completed
     const newCompleted = completed;
     newCompleted[activeStep] = true;
     setCompleted(newCompleted);
-
-    // Move to the "Generate" step
     setActiveStep(3);
   };
 
@@ -153,19 +176,15 @@ function DataGenDashboard() {
   const completedSteps = () => Object.keys(completed).length;
   const isLastStep = () => activeStep === totalSteps() - 1;
   const allStepsCompleted = () => completedSteps() === totalSteps();
+  const [generatedData, setGeneratedData] = useState([]);
+
+  const [loading, setLoading] = useState(false);
 
   // MODEL SELECT 
   const [age, setAge] = React.useState('');
 
   const handleChange = (event) => {
     setAge(event.target.value);
-  };
-
-  const handleNext = () => {
-    const newActiveStep = isLastStep() && !allStepsCompleted()
-      ? steps.findIndex((step, i) => !(i in completed))
-      : activeStep + 1;
-    setActiveStep(newActiveStep);
   };
 
   const handleBack = () => setActiveStep(prevActiveStep => prevActiveStep - 1);
@@ -187,6 +206,89 @@ function DataGenDashboard() {
   const handleCardClick = () => {
 
   };
+
+  // DATA GENERATION
+  const handleGenerateData = async () => {
+    try {
+      const response = await fetch('http://localhost:3000/generate-data');
+      const responseData = await response.json(); // Parse response as JSON
+      const generatedDataString = responseData.data.replace(/```json\n|```/g, ''); // Remove triple backticks
+      const generatedData = JSON.parse(generatedDataString); // Parse JSON data
+      setGeneratedData(generatedData);
+    } catch (error) {
+      console.error('Error generating synthetic data:', error);
+    }
+  };
+
+  // const handleNext = () => {
+  //   const newActiveStep = isLastStep() && !allStepsCompleted()
+  //     ? steps.findIndex((step, i) => !(i in completed))
+  //     : activeStep + 1;
+  //   setActiveStep(newActiveStep);
+  // };
+
+  const handleNext = async () => {
+    if (activeStep === 2) {
+      await handleGenerateData();
+    }
+    const newActiveStep = isLastStep() && !allStepsCompleted()
+      ? steps.findIndex((step, i) => !(i in completed))
+      : activeStep + 1;
+    setActiveStep(newActiveStep);
+  };
+
+  // FUNCTION FOR ANALYSIS SECTION
+  const handleOpenBottomAppSheet = () => {
+    // console.log("app bottom sheet")
+  };
+
+  // EXPORT CSV
+  const handleExportCSV = () => {
+    const csvContent = "data:text/csv;charset=utf-8," + generatedData.map(row => Object.values(row).join(",")).join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "generated_data.csv");
+    document.body.appendChild(link); // REQUIRED FOR FIREFOX
+    link.click();
+  };
+
+  // EXPORT TEXT FILE
+  const handleExportText = () => {
+    const textContent = JSON.stringify(generatedData, null, 2);
+    const blob = new Blob([textContent], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "generated_data.txt");
+    document.body.appendChild(link); // REQUIRED FOR FIREFOX
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // EXPORT PDF
+  const handleExportPDF = () => {
+    console.log("PDF EXPORT")
+  };
+
+  // EXPORT JSON FILE
+  const handleExportJSON = () => {
+    const jsonData = JSON.stringify(generatedData, null, 2);
+    const blob = new Blob([jsonData], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "generated_data.json");
+    document.body.appendChild(link); // REQUIRED FOR FIREFOX
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleAnalysis = () => {
+    console.log('Analysis');
+  };
+
+
 
   return (
     <DashboardLayout>
@@ -220,14 +322,18 @@ function DataGenDashboard() {
               <div style={{ padding: '20px' }}>
                 {activeStep === 0 && (
                   <div>
+                    <Typography variant="h6" align="center" mt={2} mb={2} className={classes.title}>
+                      Select Synthetic Data Type
+                    </Typography>
                     <Grid container spacing={3}>
                       {[
                         { icon: <TipsAndUpdatesIcon style={{ color: '#0073E6' }} />, title: 'Gemini SyntheticGAN' },
                         { icon: <DataUsageIcon />, title: 'Image Augmentation' },
                         { icon: <AutoGraphIcon />, title: 'Transform' },
+
                       ].map((item, index) => (
                         <Grid key={index} height={150} item xs={12} sm={4}>
-                          <Paper className={classes.cardContainer} onClick={handleCardClick}>
+                          <Box className={`${classes.cardContainer} ${index === 0 ? classes.firstCardContainer : ''}`} onClick={handleCardClick}>
                             <Box display="flex" justifyContent="center" className={classes.iconSection}>
                               <IconButton>
                                 {item.icon}
@@ -236,46 +342,49 @@ function DataGenDashboard() {
                             <Typography variant="h6" align="center" className={classes.title}>
                               {item.title}
                             </Typography>
-                          </Paper>
+                          </Box>
                         </Grid>
                       ))}
                     </Grid>
                   </div>
                 )}
+                
                 {activeStep === 1 && (
                   <div >
-                  <Typography variant="h6" align="center" mt={10} className={classes.title}>
-                    Select Synthetic GAN Model
-                  </Typography>
-                  <FormControl fullWidth style={{width: '300px' ,marginTop:'30px'}}>
-                    <InputLabel id="demo-simple-select-label">Models</InputLabel>
-                    <Select style={{ height: '50px'}}
-                      labelId="Models"
-                      label="Models"
-                      id="demo-simple-select"
-                      onChange={handleChange}
-                      value={10}
-                    >
-                      <MenuItem  value={10}>Gemini 1.0 Pro</MenuItem>
-                      <MenuItem disabled value={20}>Gemini 1.0 Ultra</MenuItem>
-                      <MenuItem disabled value={30}>Gemini 1.5 Pro</MenuItem>
-                    </Select>
-                  </FormControl>
-                </div>
-                
+                    <Typography variant="h6" align="center" mt={2} mb={2} className={classes.title}>
+                      Select Synthetic GAN Model
+                    </Typography>
+                    <FormControl fullWidth style={{ width: '300px', marginTop: '30px' }}>
+                      <InputLabel id="demo-simple-select-label">Models</InputLabel>
+                      <Select style={{ height: '50px' }}
+                        labelId="Models"
+                        label="Models"
+                        id="demo-simple-select"
+                        onChange={handleChange}
+                        value={10}
+                      >
+                        <MenuItem value={10}>Gemini 1.0 Pro</MenuItem>
+                        <MenuItem disabled value={20}>Gemini 1.0 Ultra</MenuItem>
+                        <MenuItem disabled value={30}>Gemini 1.5 Pro</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </div>
+
                 )}
                 {activeStep === 2 && (
                   <div >
-                  <Typography variant="h6" align="center" mt={10} className={classes.title}>
-                    Input Sample Data
-                  </Typography>
-                  <RadioGroup
+                    <Typography variant="h6" align="center" mt={2} mb={2} className={classes.title}>
+                      Input Sample Data
+                    </Typography>
+                    <RadioGroup
+                      style={{ fontSize: '20px' }}
                       aria-label="upload-option"
                       name="upload-option"
                       value={uploadOption}
                       onChange={handleUploadOptionChange}
                     >
                       <FormControlLabel value="upload" control={<Radio />} label="Continue Without Data" />
+                      {uploadOption === 'upload' && <p style={{ fontSize: '15px' }}>Generate for boston House prediction with input features : CRIM   | ZN  | INDUS | CHAS | NOX  | RM   | AGE  | DIS  | RAD | TAX </p>}
                       <FormControlLabel value="continue" control={<Radio />} label="Upload Data" />
                     </RadioGroup>
                     {uploadOption === 'continue' && <FileUploader />}
@@ -283,12 +392,87 @@ function DataGenDashboard() {
                 )}
                 {activeStep === 3 && (
                   <div>
-                    <Typography variant="h6" align="center" mt={10} className={classes.title}>
-                      Generate
+                    <Typography variant="h6" align="center" mt={2} mb={2} className={classes.title}>
+                      Generated Data:
+
                     </Typography>
-                    {/* Add your generate step content here */}
+                    <div style={{ display: 'flex', justifyContent: 'center', marginLeft: '10px', marginBottom: '20px' }}>
+                      <Button
+                        variant="outlined"
+                        size="medium"
+                        style={{ border: '1px solid #1A73E8', color: '#1A73E8', marginRight: '20px', transition: 'background-color 0.3s, color 0.3s' }}
+                        onClick={handleAnalysis}
+                        className="hoverEffect"
+                      >
+                        Analysis
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        size="medium"
+                        style={{ border: '1px solid #1A73E8', color: '#1A73E8', marginRight: '20px', transition: 'background-color 0.3s, color 0.3s' }}
+                        onClick={handleExportCSV}
+                        className="hoverEffect"
+                      >
+                        Export CSV
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        size="medium"
+                        style={{ border: '1px solid #1A73E8', color: '#1A73E8', marginRight: '20px', transition: 'background-color 0.3s, color 0.3s' }}
+                        onClick={handleExportText}
+                        className="hoverEffect"
+                      >
+                        Export Text
+                      </Button>
+                      {/* <Button
+                        variant="outlined"
+                        size="medium"
+                        style={{ border:'1px solid #1A73E8',color: '#1A73E8', marginRight: '20px', transition: 'background-color 0.3s, color 0.3s' }}
+                        onClick={handleExportPDF}
+                        className="hoverEffect"
+                      >
+                        Export PDF
+                      </Button> */}
+                      <Button
+                        variant="outlined"
+                        size="medium"
+                        style={{ border: '1px solid #1A73E8', color: '#1A73E8', transition: 'background-color 0.3s, color 0.3s' }}
+                        onClick={handleExportJSON}
+                        className="hoverEffect"
+                      >
+                        Export JSON
+                      </Button>
+                    </div>
+
+                    {generatedData && generatedData.length > 0 ? (
+                      <div style={{ overflowX: 'auto' }}>
+                        <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+                          <thead>
+                            <tr>
+                              {Object.keys(generatedData[0]).map((key) => (
+                                <th key={key} style={{ fontSize: '15px', backgroundColor: 'black', color: 'white', padding: '8px' }}>{key}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {generatedData.map((row, index) => (
+                              <tr key={index} style={{ backgroundColor: index % 2 === 0 ? '#f0f0f0' : 'white' }}>
+                                {Object.values(row).map((value, i) => (
+                                  <td key={i} style={{ fontSize: '15px', border: '1px solid #ddd', padding: '8px' }}>{value}</td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <Typography variant="body1" align="center">
+                        No generated data available.
+                      </Typography>
+                    )}
                   </div>
                 )}
+
               </div>
               <div style={{ padding: '0px 20px' }}>
                 <Box sx={{ display: 'flex', flexDirection: 'row', pt: 2 }}>
