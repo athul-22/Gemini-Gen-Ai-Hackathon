@@ -61,7 +61,7 @@ app.post('/generate-data', async (req, res) => {
             safetySettings,
         });
 
-        let prompt = "Generate synthetic data for a machine learning model aimed at predicting Boston house prices. Include 2 features in the dataset. Please provide the data in JSON format, containing at least 3 rows. Ensure that the response does not include any special formatting symbols, such as ``` or ```.";
+        let prompt = "Generate synthetic data for a machine learning model aimed at predicting Boston house prices. Include CRIM | ZN | INDUS | CHAS | NOX | RM | AGE | DIS | RAD | TAX features in the dataset. Please provide the data in JSON format, containing at least 3 rows. Ensure that the response does not include any special formatting symbols, such as ``` or ```.";
         console.log('Request body:', req.body);
 
         // CHECK IF REQUEST BODY CONTAINS COLUMN NAMES AND TOP ROWS
@@ -85,10 +85,34 @@ app.post('/generate-data', async (req, res) => {
     }
 });
 
+app.post('/analyze-data', async (req, res) => {
+    try {
+        const generatedData = req.body.generatedData;
+        const model = genAI.getGenerativeModel({
+            model: "gemini-1.5-pro-latest",
+            generationConfig,
+            systemInstruction,
+            safetySettings,
+        });
+
+        let prompt = `Generate analysis based on the provided ${generatedData} with the following components: data types, potential users, models, and a graph data sample. Ensure that the analysis is structured in JSON format with the appropriate tags for each component. Exclude any design elements, symbols, or extra lines.
+        `;
+
+        const result = await model.generateContent(prompt);
+        const analysis = result.response; 
+        const analysisData = analysis.candidates[0].content; 
+        console.log('Analysis Data:', analysisData);
+        console.log('Analysis:', analysis.response);
+
+        res.json({ analysis: analysisData });
+    } catch (error) {
+        console.error('Error analyzing data:', error);
+        res.status(500).json({ error: error.message }); 
+    }
+});
 
 app.post('/upload-csv', (req, res) => {
     try {
-      
       const { columnNames, topRows } = req.body;
 
       console.log('Received column names:', columnNames);
