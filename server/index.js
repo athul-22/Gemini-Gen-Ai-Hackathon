@@ -4,7 +4,7 @@ require('dotenv').config();
 const cors = require('cors');
 
 const app = express();
-
+app.use(express.json());
 app.use(cors({
   origin: 'http://localhost:3001', // SECURITY - ALLOW REQ. FROM FRONTEND - DIFFERENT URL
 }));
@@ -50,8 +50,8 @@ const safetySettings = [
     },
 ];
 
-// ENDPOINT - http://localhost:3000/generate-data - GET METHOD
-app.get('/generate-data', async (req, res) => {
+// ENDPOINT - http://localhost:3000/generate-data - POST METHOD
+app.post('/generate-data', async (req, res) => {
     try {
         // INITIALIZE GEN AI MODEL
         const model = genAI.getGenerativeModel({
@@ -61,11 +61,19 @@ app.get('/generate-data', async (req, res) => {
             safetySettings,
         });
 
-        // PROMPT
-        const prompt = "Generate synthetic data for a machine learning model aimed at predicting Boston house prices. Include 2 features in the dataset. Please provide the data in JSON format, containing at least 3 rows. Ensure that the response does not include any special formatting symbols, such as ``` or ```.";
+        let prompt = "Generate synthetic data for a machine learning model aimed at predicting Boston house prices. Include 2 features in the dataset. Please provide the data in JSON format, containing at least 3 rows. Ensure that the response does not include any special formatting symbols, such as ``` or ```.";
+        console.log('Request body:', req.body);
 
+        // CHECK IF REQUEST BODY CONTAINS COLUMN NAMES AND TOP ROWS
+        if (req.body && req.body.columnNames && req.body.topRows) {
+            console.log('Received column names:', req.body.columnNames)
+            console.log('Received top 3 rows:', req.body.topRows)
+            const { columnNames, topRows } = req.body;
+            prompt = `Generate synthetic data for a machine learning model aimed at predicting Boston house prices. Include ${columnNames} features in the dataset. Please provide the data in JSON format, containing at least 3 rows similar to ${topRows}. Ensure that the response does not include any special formatting symbols.`;
+        }
+        
         const result = await model.generateContent(prompt);
-        const generatedData = result.response.text(); 
+        const generatedData = result.response.text();
 
         console.log('Generated data:', generatedData);
 
@@ -77,6 +85,21 @@ app.get('/generate-data', async (req, res) => {
     }
 });
 
+
+app.post('/upload-csv', (req, res) => {
+    try {
+      
+      const { columnNames, topRows } = req.body;
+
+      console.log('Received column names:', columnNames);
+      console.log('Received top 3 rows:', topRows);
+  
+      res.status(200).json({ message: 'CSV data received successfully.' });
+    } catch (error) {
+      console.error('Error handling CSV upload:', error);
+      res.status(500).json({ error: 'Internal Server Error' });
+    }
+  });
 
 
 // START THE SERVER

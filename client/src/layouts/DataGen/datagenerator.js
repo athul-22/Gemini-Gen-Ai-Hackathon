@@ -29,6 +29,8 @@ import RadioGroup from '@mui/material/RadioGroup';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import { Label } from '@material-ui/icons';
 import LinearProgress from '@mui/material/LinearProgress';
+import CircularProgress from '@material-ui/core/CircularProgress';
+import Backdrop from '@material-ui/core/Backdrop';
 import './styles.css';
 
 const useStyles = makeStyles((theme) => ({
@@ -74,82 +76,22 @@ const useStyles = makeStyles((theme) => ({
     justifyContent: 'space-between',
     cursor: 'pointer',
   },
+  backdrop: {
+    zIndex: theme.zIndex.drawer + 1,
+    color: '#fff',
+  },
 }));
 
 
 const steps = ['Type', 'Model', 'Input Sample', 'Generate'];
 
-const FileUploader = () => {
-
-  const [file, setFile] = useState(null);
-  const [csvData, setCsvData] = useState(null);
-
-  const handleFileChange = (event) => {
-    const selectedFile = event.target.files[0];
-    if (selectedFile && selectedFile.type === 'text/csv' && selectedFile.size <= 102400) {
-      setFile(selectedFile);
-      const reader = new FileReader();
-      reader.onload = () => {
-        const csvDataArray = reader.result.split('\n').map((row) => row.split(','));
-        setCsvData(csvDataArray);
-        console.log(csvDataArray)
-      };
-      reader.readAsText(selectedFile);
-    } else {
-      alert('Please select a CSV file with a size less than or equal to 100KB');
-    }
-  };
-
-  const handleDragOver = (event) => {
-    event.preventDefault();
-  };
-
-  const handleDrop = (event) => {
-    event.preventDefault();
-    const droppedFile = event.dataTransfer.files[0];
-    if (droppedFile && droppedFile.type === 'text/csv' && droppedFile.size <= 102400) {
-      setFile(droppedFile);
-      const reader = new FileReader();
-      reader.onload = () => {
-        const csvDataArray = reader.result.split('\n').map((row) => row.split(','));
-        setCsvData(csvDataArray);
-      };
-      reader.readAsText(droppedFile);
-    } else {
-      alert('Please select a CSV file with a size less than or equal to 100KB');
-    }
-  };
+// const FileUploader = () => {
 
 
-  return (
-    <div
-      onDragOver={handleDragOver}
-      onDrop={handleDrop}
-      style={{
-        border: '1.5px dashed #ccc',
-        padding: '20px',
-        textAlign: 'center',
-        borderRadius: '20px',
-        cursor: 'pointer',
-      }}
-    >
-      {file ? (
-        <div>
-          <p>Selected File: {file.name}</p>
-          <button onClick={() => {
-            setFile(null);
-            setCsvData(null);
-          }}>Remove File</button>
-        </div>
-      ) : (
-        <div>
-          <p style={{ fontSize: '15px' }}>Drag and drop a CSV file here (maximum size: 100KB), or click to select a file</p>
-          <input type="file" accept=".csv" onChange={handleFileChange} />
-        </div>
-      )}
-    </div>
-  );
-};
+//   return (
+
+//   );
+// };
 
 
 function DataGenDashboard() {
@@ -161,6 +103,43 @@ function DataGenDashboard() {
   const MenuProps = {}; // Define MenuProps here
   const [uploadOption, setUploadOption] = useState('continue');
   const [progress, setProgress] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [file, setFile] = useState(null);
+  const [csvData, setCsvData] = useState(null);
+
+  const handleFileUpload = (file) => {
+    if (file && file.type === 'text/csv' && file.size <= 102400) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const csvData = reader.result;
+        const rows = csvData.split('\n');
+        const columnNames = rows[0].split(',');
+        const topRows = rows.slice(1, 4).map(row => row.split(','));
+        setCsvData({ columnNames, topRows });
+        console.log('Column Names:', columnNames);
+        console.log('Top 3 Rows:', topRows);
+      };
+      reader.readAsText(file);
+    } else {
+      alert('Please select a CSV file with a size less than or equal to 100KB');
+    }
+  };
+
+  const handleFileChange = (event) => {
+    const selectedFile = event.target.files[0];
+    handleFileUpload(selectedFile);
+  };
+
+  const handleDragOver = (event) => {
+    event.preventDefault();
+  };
+
+  const handleDrop = (event) => {
+    event.preventDefault();
+    const droppedFile = event.dataTransfer.files[0];
+    handleFileUpload(droppedFile);
+  };
+
 
   const handleContinueWithoutFile = () => {
     const newCompleted = completed;
@@ -172,13 +151,14 @@ function DataGenDashboard() {
   const handleUploadOptionChange = (event) => {
     setUploadOption(event.target.value);
   };
+
   const totalSteps = () => steps.length;
   const completedSteps = () => Object.keys(completed).length;
   const isLastStep = () => activeStep === totalSteps() - 1;
   const allStepsCompleted = () => completedSteps() === totalSteps();
   const [generatedData, setGeneratedData] = useState([]);
 
-  const [loading, setLoading] = useState(false);
+
 
   // MODEL SELECT 
   const [age, setAge] = React.useState('');
@@ -208,13 +188,38 @@ function DataGenDashboard() {
   };
 
   // DATA GENERATION
+  // const handleGenerateData = async () => {
+  //   try {
+  //     const response = await fetch('http://localhost:3000/generate-data');
+  //     const responseData = await response.json(); // Parse response as JSON
+  //     const generatedDataString = responseData.data.replace(/```json\n|```/g, ''); // Remove triple backticks
+  //     const generatedData = JSON.parse(generatedDataString); // Parse JSON data
+  //     setGeneratedData(generatedData);
+  //   } catch (error) {
+  //     console.error('Error generating synthetic data:', error);
+  //   }
+  // };
+
   const handleGenerateData = async () => {
     try {
-      const response = await fetch('http://localhost:3000/generate-data');
+      console.log("FUNCTION CALLED")
+      const response = await fetch('http://localhost:3000/generate-data', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}), // Send an empty body for no CSV data
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate synthetic data.');
+      }
+
       const responseData = await response.json(); // Parse response as JSON
       const generatedDataString = responseData.data.replace(/```json\n|```/g, ''); // Remove triple backticks
       const generatedData = JSON.parse(generatedDataString); // Parse JSON data
       setGeneratedData(generatedData);
+      console.log('Synthetic data generated successfully.');
     } catch (error) {
       console.error('Error generating synthetic data:', error);
     }
@@ -227,15 +232,74 @@ function DataGenDashboard() {
   //   setActiveStep(newActiveStep);
   // };
 
+  // const handleNext = async () => {
+  //   if (activeStep === 2) {
+  //     handleToggleBackdrop();
+  //     await handleGenerateData();
+  //     setLoading(false);
+  //   }
+  //   const newActiveStep = isLastStep() && !allStepsCompleted()
+  //     ? steps.findIndex((step, i) => !(i in completed))
+  //     : activeStep + 1;
+  //   setActiveStep(newActiveStep);
+  // };
+
   const handleNext = async () => {
     if (activeStep === 2) {
-      await handleGenerateData();
+      if (uploadOption === 'continue') {
+        if (!csvData) {
+          alert('Please upload a CSV file first.');
+          return;
+        }
+        handleToggleBackdrop();
+        // Extract column names and top 3 rows from csvData
+        const { columnNames, topRows } = csvData;
+
+        // Create an object containing column names and top 3 rows
+        const dataToSend = {
+          columnNames,
+          topRows,
+        };
+
+        try {
+          // Send the data to the backend
+          const response = await fetch('http://localhost:3000/generate-data', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(dataToSend),
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to upload CSV data.');
+          }
+
+          // Parse response as JSON
+          const responseData = await response.json();
+
+          const generatedDataString = responseData.data.replace(/```json\n|```/g, ''); // Remove triple backticks
+          const generatedData = JSON.parse(generatedDataString); // Parse JSON data
+          setGeneratedData(generatedData);
+          console.log('Synthetic data generated successfully.');
+          setLoading(false);
+        } catch (error) {
+          console.error('Error uploading CSV data:', error);
+        }
+      } else {
+        handleToggleBackdrop();
+        await handleGenerateData();
+        setLoading(false);
+      }
     }
+
     const newActiveStep = isLastStep() && !allStepsCompleted()
       ? steps.findIndex((step, i) => !(i in completed))
       : activeStep + 1;
     setActiveStep(newActiveStep);
   };
+
+
 
   // FUNCTION FOR ANALYSIS SECTION
   const handleOpenBottomAppSheet = () => {
@@ -288,143 +352,179 @@ function DataGenDashboard() {
     console.log('Analysis');
   };
 
+  const handleToggleBackdrop = () => {
+    setLoading(!loading);
+  };
+
+  const handleCloseBackdrop = () => {
+    setLoading(false);
+  };
 
 
   return (
-    <DashboardLayout>
-      <Grid item xs={12} mt={2} style={{ borderRadius: '30px' }}>
-        <Card>
-          <MDBox
-            mx={2}
-            mt={-2}
-            py={3}
-            px={2}
-            variant="gradient"
-            bgColor="info"
-            borderRadius="lg"
-            coloredShadow="info"
-          >
-            <MDTypography variant="h6" color="white">
-              Gemini Synthetic Data GEN
-            </MDTypography>
-          </MDBox>
-          <MDBox mx={5} mt={5} py={3} px={2}>
-            <Box sx={{ width: '100%' }}>
-              <Stepper nonLinear activeStep={activeStep}>
-                {steps.map((label, index) => (
-                  <Step key={label} completed={completed[index]}>
-                    <StepButton color="inherit" onClick={handleStep(index)}>
-                      {label}
-                    </StepButton>
-                  </Step>
-                ))}
-              </Stepper>
-              <div style={{ padding: '20px' }}>
-                {activeStep === 0 && (
-                  <div>
-                    <Typography variant="h6" align="center" mt={2} mb={2} className={classes.title}>
-                      Select Synthetic Data Type
-                    </Typography>
-                    <Grid container spacing={3}>
-                      {[
-                        { icon: <TipsAndUpdatesIcon style={{ color: '#0073E6' }} />, title: 'Gemini SyntheticGAN' },
-                        { icon: <DataUsageIcon />, title: 'Image Augmentation' },
-                        { icon: <AutoGraphIcon />, title: 'Transform' },
+    <>
+      <DashboardLayout>
+        <Grid item xs={12} mt={2} style={{ borderRadius: '30px' }}>
+          <Card>
+            <MDBox
+              mx={2}
+              mt={-2}
+              py={3}
+              px={2}
+              variant="gradient"
+              bgColor="info"
+              borderRadius="lg"
+              coloredShadow="info"
+            >
+              <MDTypography variant="h6" color="white">
+                Gemini Synthetic Data GEN
+              </MDTypography>
+            </MDBox>
+            <MDBox mx={5} mt={5} py={3} px={2}>
+              <Box sx={{ width: '100%' }}>
+                <Stepper nonLinear activeStep={activeStep}>
+                  {steps.map((label, index) => (
+                    <Step key={label} completed={completed[index]}>
+                      <StepButton color="inherit" onClick={handleStep(index)}>
+                        {label}
+                      </StepButton>
+                    </Step>
+                  ))}
+                </Stepper>
+                <div style={{ padding: '20px' }}>
+                  {activeStep === 0 && (
+                    <div>
+                      <Typography variant="h6" align="center" mt={2} mb={2} className={classes.title}>
+                        Select Synthetic Data Type
+                      </Typography>
+                      <Grid container spacing={3}>
+                        {[
+                          { icon: <TipsAndUpdatesIcon style={{ color: '#0073E6' }} />, title: 'Gemini SyntheticGAN' },
+                          { icon: <DataUsageIcon />, title: 'Image Augmentation' },
+                          { icon: <AutoGraphIcon />, title: 'Transform' },
 
-                      ].map((item, index) => (
-                        <Grid key={index} height={150} item xs={12} sm={4}>
-                          <Box className={`${classes.cardContainer} ${index === 0 ? classes.firstCardContainer : ''}`} onClick={handleCardClick}>
-                            <Box display="flex" justifyContent="center" className={classes.iconSection}>
-                              <IconButton>
-                                {item.icon}
-                              </IconButton>
+                        ].map((item, index) => (
+                          <Grid key={index} height={150} item xs={12} sm={4}>
+                            <Box className={`${classes.cardContainer} ${index === 0 ? classes.firstCardContainer : ''}`} onClick={handleCardClick}>
+                              <Box display="flex" justifyContent="center" className={classes.iconSection}>
+                                <IconButton>
+                                  {item.icon}
+                                </IconButton>
+                              </Box>
+                              <Typography variant="h6" align="center" className={classes.title}>
+                                {item.title}
+                              </Typography>
                             </Box>
-                            <Typography variant="h6" align="center" className={classes.title}>
-                              {item.title}
-                            </Typography>
-                          </Box>
-                        </Grid>
-                      ))}
-                    </Grid>
-                  </div>
-                )}
-                
-                {activeStep === 1 && (
-                  <div >
-                    <Typography variant="h6" align="center" mt={2} mb={2} className={classes.title}>
-                      Select Synthetic GAN Model
-                    </Typography>
-                    <FormControl fullWidth style={{ width: '300px', marginTop: '30px' }}>
-                      <InputLabel id="demo-simple-select-label">Models</InputLabel>
-                      <Select style={{ height: '50px' }}
-                        labelId="Models"
-                        label="Models"
-                        id="demo-simple-select"
-                        onChange={handleChange}
-                        value={10}
-                      >
-                        <MenuItem value={10}>Gemini 1.0 Pro</MenuItem>
-                        <MenuItem disabled value={20}>Gemini 1.0 Ultra</MenuItem>
-                        <MenuItem disabled value={30}>Gemini 1.5 Pro</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </div>
+                          </Grid>
+                        ))}
+                      </Grid>
+                    </div>
+                  )}
 
-                )}
-                {activeStep === 2 && (
-                  <div >
-                    <Typography variant="h6" align="center" mt={2} mb={2} className={classes.title}>
-                      Input Sample Data
-                    </Typography>
-                    <RadioGroup
-                      style={{ fontSize: '20px' }}
-                      aria-label="upload-option"
-                      name="upload-option"
-                      value={uploadOption}
-                      onChange={handleUploadOptionChange}
-                    >
-                      <FormControlLabel value="upload" control={<Radio />} label="Continue Without Data" />
-                      {uploadOption === 'upload' && <p style={{ fontSize: '15px' }}>Generate for boston House prediction with input features : CRIM   | ZN  | INDUS | CHAS | NOX  | RM   | AGE  | DIS  | RAD | TAX </p>}
-                      <FormControlLabel value="continue" control={<Radio />} label="Upload Data" />
-                    </RadioGroup>
-                    {uploadOption === 'continue' && <FileUploader />}
-                  </div>
-                )}
-                {activeStep === 3 && (
-                  <div>
-                    <Typography variant="h6" align="center" mt={2} mb={2} className={classes.title}>
-                      Generated Data:
+                  {activeStep === 1 && (
+                    <div >
+                      <Typography variant="h6" align="center" mt={2} mb={2} className={classes.title}>
+                        Select Synthetic GAN Model
+                      </Typography>
+                      <FormControl fullWidth style={{ width: '300px', marginTop: '30px' }}>
+                        <InputLabel id="demo-simple-select-label">Models</InputLabel>
+                        <Select style={{ height: '50px' }}
+                          labelId="Models"
+                          label="Models"
+                          id="demo-simple-select"
+                          onChange={handleChange}
+                          value={10}
+                        >
+                          <MenuItem value={10}>Gemini 1.0 Pro</MenuItem>
+                          <MenuItem disabled value={20}>Gemini 1.0 Ultra</MenuItem>
+                          <MenuItem disabled value={30}>Gemini 1.5 Pro</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </div>
 
-                    </Typography>
-                    <div style={{ display: 'flex', justifyContent: 'center', marginLeft: '10px', marginBottom: '20px' }}>
-                      <Button
-                        variant="outlined"
-                        size="medium"
-                        style={{ border: '1px solid #1A73E8', color: '#1A73E8', marginRight: '20px', transition: 'background-color 0.3s, color 0.3s' }}
-                        onClick={handleAnalysis}
-                        className="hoverEffect"
+                  )}
+                  {activeStep === 2 && (
+                    <div >
+                      <Typography variant="h6" align="center" mt={2} mb={2} className={classes.title}>
+                        Input Sample Data
+                      </Typography>
+                      <RadioGroup
+                        style={{ fontSize: '20px' }}
+                        aria-label="upload-option"
+                        name="upload-option"
+                        value={uploadOption}
+                        onChange={handleUploadOptionChange}
                       >
-                        Analysis
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        size="medium"
-                        style={{ border: '1px solid #1A73E8', color: '#1A73E8', marginRight: '20px', transition: 'background-color 0.3s, color 0.3s' }}
-                        onClick={handleExportCSV}
-                        className="hoverEffect"
-                      >
-                        Export CSV
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        size="medium"
-                        style={{ border: '1px solid #1A73E8', color: '#1A73E8', marginRight: '20px', transition: 'background-color 0.3s, color 0.3s' }}
-                        onClick={handleExportText}
-                        className="hoverEffect"
-                      >
-                        Export Text
-                      </Button>
-                      {/* <Button
+                        <FormControlLabel value="upload" control={<Radio />} label="Continue Without Data" />
+                        {uploadOption === 'upload' && <p style={{ fontSize: '15px' }}>Generate for boston House prediction with input features : CRIM   | ZN  | INDUS | CHAS | NOX  | RM   | AGE  | DIS  | RAD | TAX </p>}
+                        <FormControlLabel value="continue" control={<Radio />} label="Upload Data" />
+                      </RadioGroup>
+                      {uploadOption === 'continue' &&
+                        <div
+                          onDragOver={handleDragOver}
+                          onDrop={handleDrop}
+                          style={{
+                            border: '1.5px dashed #ccc',
+                            padding: '20px',
+                            textAlign: 'center',
+                            borderRadius: '20px',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {file ? (
+                            <div>
+                              <p>Selected File: {file.name}</p>
+                              <button onClick={() => {
+                                setFile(null);
+                                setCsvData(null);
+                              }}>Remove File</button>
+                            </div>
+                          ) : (
+                            <div>
+                              <p style={{ fontSize: '15px' }}>Drag and drop a CSV file here (maximum size: 100KB), or click to select a file</p>
+                              <input type="file" accept=".csv" onChange={handleFileChange} />
+                            </div>
+                          )}
+                        </div>
+                      }
+
+                    </div>
+                  )}
+                  {activeStep === 3 && (
+                    <div>
+                      <Typography variant="h6" align="center" mt={2} mb={2} className={classes.title}>
+                        Generated Data:
+
+                      </Typography>
+                      <div style={{ display: 'flex', justifyContent: 'center', marginLeft: '10px', marginBottom: '20px' }}>
+                        <Button
+                          variant="outlined"
+                          size="medium"
+                          style={{ border: '1px solid #1A73E8', color: '#1A73E8', marginRight: '20px', transition: 'background-color 0.3s, color 0.3s' }}
+                          onClick={handleAnalysis}
+                          className="hoverEffect"
+                        >
+                          Analysis
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          size="medium"
+                          style={{ border: '1px solid #1A73E8', color: '#1A73E8', marginRight: '20px', transition: 'background-color 0.3s, color 0.3s' }}
+                          onClick={handleExportCSV}
+                          className="hoverEffect"
+                        >
+                          Export CSV
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          size="medium"
+                          style={{ border: '1px solid #1A73E8', color: '#1A73E8', marginRight: '20px', transition: 'background-color 0.3s, color 0.3s' }}
+                          onClick={handleExportText}
+                          className="hoverEffect"
+                        >
+                          Export Text
+                        </Button>
+                        {/* <Button
                         variant="outlined"
                         size="medium"
                         style={{ border:'1px solid #1A73E8',color: '#1A73E8', marginRight: '20px', transition: 'background-color 0.3s, color 0.3s' }}
@@ -433,68 +533,73 @@ function DataGenDashboard() {
                       >
                         Export PDF
                       </Button> */}
-                      <Button
-                        variant="outlined"
-                        size="medium"
-                        style={{ border: '1px solid #1A73E8', color: '#1A73E8', transition: 'background-color 0.3s, color 0.3s' }}
-                        onClick={handleExportJSON}
-                        className="hoverEffect"
-                      >
-                        Export JSON
-                      </Button>
-                    </div>
+                        <Button
+                          variant="outlined"
+                          size="medium"
+                          style={{ border: '1px solid #1A73E8', color: '#1A73E8', transition: 'background-color 0.3s, color 0.3s' }}
+                          onClick={handleExportJSON}
+                          className="hoverEffect"
+                        >
+                          Export JSON
+                        </Button>
+                      </div>
 
-                    {generatedData && generatedData.length > 0 ? (
-                      <div style={{ overflowX: 'auto' }}>
-                        <table style={{ borderCollapse: 'collapse', width: '100%' }}>
-                          <thead>
-                            <tr>
-                              {Object.keys(generatedData[0]).map((key) => (
-                                <th key={key} style={{ fontSize: '15px', backgroundColor: 'black', color: 'white', padding: '8px' }}>{key}</th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {generatedData.map((row, index) => (
-                              <tr key={index} style={{ backgroundColor: index % 2 === 0 ? '#f0f0f0' : 'white' }}>
-                                {Object.values(row).map((value, i) => (
-                                  <td key={i} style={{ fontSize: '15px', border: '1px solid #ddd', padding: '8px' }}>{value}</td>
+                      {generatedData && generatedData.length > 0 ? (
+                        <div style={{ overflowX: 'auto' }}>
+                          <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+                            <thead>
+                              <tr>
+                                {Object.keys(generatedData[0]).map((key) => (
+                                  <th key={key} style={{ fontSize: '15px', backgroundColor: 'black', color: 'white', padding: '8px' }}>{key}</th>
                                 ))}
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : (
-                      <Typography variant="body1" align="center">
-                        No generated data available.
-                      </Typography>
-                    )}
-                  </div>
-                )}
+                            </thead>
+                            <tbody>
+                              {generatedData.map((row, index) => (
+                                <tr key={index} style={{ backgroundColor: index % 2 === 0 ? '#f0f0f0' : 'white' }}>
+                                  {Object.values(row).map((value, i) => (
+                                    <td key={i} style={{ fontSize: '15px', border: '1px solid #ddd', padding: '8px' }}>{value}</td>
+                                  ))}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <Typography variant="body1" align="center">
+                          No generated data available.
+                        </Typography>
+                      )}
+                    </div>
+                  )}
 
-              </div>
-              <div style={{ padding: '0px 20px' }}>
-                <Box sx={{ display: 'flex', flexDirection: 'row', pt: 2 }}>
-                  <Button
-                    disabled={activeStep === 0}
-                    onClick={handleBack}
-                    sx={{ mr: 1 }}
-                    style={{ border: '1px solid grey', color: 'grey' }}
-                  >
-                    Back
-                  </Button>
-                  <Box sx={{ flex: '1 1 auto' }} />
-                  <Button onClick={handleNext} sx={{ mr: 1 }} style={{ color: 'white', backgroundColor: 'black' }}>
-                    {isLastStep() ? 'Finish' : 'Next'}
-                  </Button>
-                </Box>
-              </div>
-            </Box>
-          </MDBox>
-        </Card>
-      </Grid>
-    </DashboardLayout >
+                </div>
+                <div style={{ padding: '0px 20px' }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'row', pt: 2 }}>
+                    <Button
+                      disabled={activeStep === 0}
+                      onClick={handleBack}
+                      sx={{ mr: 1 }}
+                      style={{ border: '1px solid grey', color: 'grey' }}
+                    >
+                      Back
+                    </Button>
+                    <Box sx={{ flex: '1 1 auto' }} />
+                    <Button onClick={handleNext} sx={{ mr: 1 }} style={{ color: 'white', backgroundColor: 'black' }}>
+                      {isLastStep() ? 'Finish' : 'Next'}
+                    </Button>
+                  </Box>
+                </div>
+              </Box>
+            </MDBox>
+          </Card>
+        </Grid>
+        <Backdrop className={classes.backdrop} open={loading} onClick={handleCloseBackdrop}>
+          <CircularProgress color="inherit" />
+        </Backdrop>
+      </DashboardLayout >
+
+    </>
   );
 }
 
