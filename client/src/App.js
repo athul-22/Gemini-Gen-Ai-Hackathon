@@ -36,6 +36,7 @@ import { useMaterialUIController, setMiniSidenav, setOpenConfigurator } from "co
 
 // Import pages
 import Dashboard from "layouts/dashboard";
+import DataGenator from 'layouts/DataGen/datagenerator'
 
 export default function App() {
 
@@ -162,7 +163,7 @@ export default function App() {
     <Routes>
       {getRoutes(routes)}
       {/* <Route path="/signin" element={<Signin />} /> */}
-      <Route path="/*" element={<Dashboard />} />
+      <Route path="/*" element={<DataGenator />} />
     </Routes>
   </ThemeProvider>
   );
