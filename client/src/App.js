@@ -152,7 +152,7 @@ export default function App() {
       <Sidenav
         color={sidenavColor}
         // brand={(transparentSidenav && !darkMode) || whiteSidenav ? brandDark : brandWhite}
-        brandName="Crime Management System"
+        brandName="Gemini Synthetic Data generator"
         routes={routes}
         onMouseEnter={handleOnMouseEnter}
         onMouseLeave={handleOnMouseLeave}
